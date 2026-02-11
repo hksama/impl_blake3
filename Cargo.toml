@@ -4,4 +4,10 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+hex = "0.4.3"
 tracing = "0.1.44"
+
+
+[dev-dependencies]
+criterion = "0.8.2"
+rand = "0.10.0"

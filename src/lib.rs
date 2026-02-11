@@ -1,68 +1,55 @@
 type Word = u32;
-
-static iv: [u32; 8] = [
+use std::cmp::min;
+mod error;
+/// initialisation vector
+static IV: [u32; 8] = [
     0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19,
 ];
 
-#[derive(Debug)]
+
+/// Breaks down the input data into chunks of sizes 1024 bytes.
+#[derive(Debug,Clone)]
 struct DataChunks<'a> {
     /// Number of bytes of a file.
     input_len: usize,
 
-    /// Input data sliced into 64*64 bits.
+    /// Input data sliced into 1024 bytes.
     /// First vector is for all chunks of 1024 bytes and
-    slices: (Vec<[u8; 1024]>, &'a [u8]),
+    /// last chunk can be less than 1024 bytes.
+    slices: (&'a [[u8; 1024]], &'a [u8]),
 
     /// No of chunks input data broken into.
     chunks: usize,
 }
 
-/// breaks given data into chunks of 1024 bytes by mutating passed data.
-fn break_into_chunks_at_once_mut<'a>(input_data: &'a mut [u8]) -> DataChunks<'a> {
-    /*
-    let chunks = input_data.len().div_ceil(1024);
-    let mut mem_ptr_front: usize = 0;
-    let mut mem_ptr_back: usize = 0;
-    let mut chunks_vec: Vec<[u8; 512]> = Vec::new();
-
-    input is less than 1024 elements
-    if (mem_ptr_front + 1024).min(input_data.len()) == input_data.len() {
-        return DataChunks {
-            input_len: input_data.len(),
-            slices: ([], input_data.clone().as_slice()),
-            chunks: 1,
-        };
+/// breaks given data into chunks of 1024 bytes by mutating passed data in place.
+fn break_into_chunks_inplace<'a>(input_data: &'a mut [u8]) -> Result<DataChunks<'a>,String> {
+    if input_data.len() == 0{
+        return Err(String::from("Input length too short!"))
     }
-
-    while mem_ptr_front <= input_data.len() && mem_ptr_back < input_data.len() {
-        // println!("{},{},{} \n",mem_ptr_front,mem_ptr_back,input_data[mem_ptr_back..mem_ptr_front].len());
-        mem_ptr_front = (mem_ptr_front + 1024).min(input_data.len());
-
-        chunks_vec.push(input_data[mem_ptr_back..mem_ptr_front].try_into().unwrap());
-        mem_ptr_back = (mem_ptr_back + 1024).min(input_data.len());
-        // println!("{},{} \n",mem_ptr_front,mem_ptr_back);
-    }
-    return DataChunks {
-        input_len: input_data.len(),
-        slices: chunks_vec.as_slice(),
-        chunks: chunks,
-    };
-    */
 
     let (chunks, remainder) = input_data.as_chunks::<1024>();
 
-    return DataChunks {
+    return Ok(DataChunks {
         input_len: input_data.len(),
-        slices: (chunks.to_vec(), remainder),
-        chunks: chunks.len(),
-    };
+        slices: (chunks, remainder),
+        chunks: min(chunks.len(),1),
+    })
+
 }
 
 /// permute fn as  which shifts values at indices given in input_indices to shifted_indices
 /// Mentioned in https://www.ietf.org/archive/id/draft-aumasson-blake3-00.html#name-message-word-permutation
-fn permute(data_chunks: [u32; 16]) {
+fn permute(data_chunks: &mut [u32; 16])->[u32;16] {
     let input_indices: [usize; 16] = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
     let shifted_indices: [usize; 16] = [2, 6, 3, 10, 7, 0, 4, 13, 1, 11, 12, 5, 9, 14, 15, 8];
+
+    let mut temp = *data_chunks;
+    for i in 0..17{
+        data_chunks[i] = temp[shifted_indices[i]];
+    }
+    *data_chunks
+
 }
 
 /// Is the quarter round function inspired from the ChaCha20 algorithm.
@@ -81,20 +68,23 @@ fn quarter_round_fn(
     word_in_process[c] = (word_in_process[c] + word_in_process[d]) % u32::MAX;
     word_in_process[b] = (word_in_process[b] ^ word_in_process[c]).rotate_right(12);
     word_in_process[a] = (word_in_process[a] + word_in_process[b] + y) % u32::MAX;
-    word_in_process[d] = (word_in_process[d] ^ word_in_process[a]).rotate_right(12);
+    word_in_process[d] = (word_in_process[d] ^ word_in_process[a]).rotate_right(8);
     word_in_process[c] = (word_in_process[c] + word_in_process[d]) % u32::MAX;
     word_in_process[b] = (word_in_process[b] ^ word_in_process[c]).rotate_right(7);
 
+    //shadowing to make word_in_process immutable
     let word_in_process = word_in_process;
     *word_in_process
 }
 
-fn compress(h: [u32; 8], msg: [u32; 16], t: [u32; 2], len: u32, flags: u32) {
+/// Is the BLAKE3_COMPRESS fn 
+/// mentioned in https://www.ietf.org/archive/id/draft-aumasson-blake3-00.html#name-compression-function-proces
+fn compress<'a>(h: [u32; 8], msg: &'a mut [u32; 16], t: [u32; 2], len: u32, flags: u32) {
     let mut v: [u32; 16] = [0; 16];
     for (index, val) in h.iter().enumerate() {
         v[index] = *val;
     }
-    for (index, val) in iv.iter().enumerate() {
+    for (index, val) in IV.iter().enumerate() {
         v[index + 8] = *val;
     }
     v[12] = t[0];
@@ -116,15 +106,50 @@ fn compress(h: [u32; 8], msg: [u32; 16], t: [u32; 2], len: u32, flags: u32) {
     permute(msg);
 }
 
-// fn construct_merkle_tree() {}
+struct MerkleTree{
+    depth:u8,
+    leaf_nodes:Vec<[Word;8]>,
+    // intermediate_nodes:Has
+}
 
 #[cfg(test)]
 mod preprocessing_tests {
+    use rand::{RngExt, rng};
+
     use super::*;
+
+    /// general test to see if chunking works 
     #[test]
-    fn check_chunking_general() {
-        let input: Vec<u8> = vec![0, 100, 21, 2, 4, 2, 3, 1];
-        // let chunked_op = break_into_chunks_at_once(BreakIntoChunksOptions::CopyValue(input));
-        // println!("{:?}", chunked_op);
+    fn test_chunking() {
+        //general test
+        let mut input: Vec<u8> = vec![0, 100, 21, 2, 4, 2, 3, 1];
+        let rng = rand::rng();
+
+        //if remainder is registered
+        let mut rng_data:Vec<u8> = rng.clone().random_iter().take(1025).collect();
+
+        // no elements edge case
+        let mut rng_data_2:Vec<u8> = rng.random_iter().take(0).collect();
+        let chunks_a = break_into_chunks_inplace(&mut input);
+        let chunks_b=break_into_chunks_inplace(&mut rng_data);
+        let chunks_c=break_into_chunks_inplace(&mut rng_data_2);
+        println!("{:?}",&chunks_a);
+        println!("{:?}",chunks_b);
+        println!("{:?}",chunks_c);
+
+        assert_eq!(chunks_a.clone().unwrap().chunks,0);
+        assert_eq!(chunks_a.clone().unwrap().slices.0.len(),0);
+        assert_eq!(chunks_b.unwrap().chunks,1);
+        // assert_eq!(chunks_b)
+
+    }
+
+    #[test]
+    fn test_quarter_round(){
+        let rng = rand::rng();
+        let mut rng_data:Vec<u32> = rng.clone().random_iter().take(2).collect();
+        let mut gen_word_in_process:Vec<u32> = rng.random_iter().take(16).collect();
+        let array_ref: &mut [u32; 16] = gen_word_in_process.as_mut_slice().try_into().unwrap();
+        let q_output = quarter_round_fn(array_ref, 0,4,8,12,rng_data[0],rng_data[1]);
     }
 }
