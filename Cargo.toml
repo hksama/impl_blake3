@@ -5,8 +5,13 @@ edition = "2024"
 
 [dependencies]
 hex = "0.4.3"
-tracing = "0.1.44"
+thiserror = "2.0.18"
+tracing = {version = "0.1.44", optional= true}
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 
+[features]
+default = []
+trace_internals = ["dep:tracing"]
 
 [dev-dependencies]
 criterion = "0.8.2"

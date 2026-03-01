@@ -1,0 +1,11 @@
+[book]
+authors = ["EvilGenius1010"]
+language = "en"
+
+[preprocessor.private]
+command = "mdbook-private"
+remove = true          # true = strip private sections for PUBLIC build
+style = false          # don't style (since we're removing)
+notice = "PRIVATE"
+chapter-prefix = "_"   # chapters starting with _ get removed
+
