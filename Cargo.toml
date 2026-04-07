@@ -16,3 +16,4 @@ trace_internals = ["dep:tracing"]
 [dev-dependencies]
 criterion = "0.8.2"
 rand = "0.10.0"
+blake3 = "1"

@@ -9,6 +9,6 @@ pub enum Blake3Error {
 
 #[derive(Error, Debug, Clone)]
 pub enum ChunkingError {
-    #[error("Input Length too short!")]
+    #[error("Input length is zero; BLAKE3 requires at least 1 byte.")]
     InputTooShort,
 }
