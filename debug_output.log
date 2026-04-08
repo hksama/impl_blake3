@@ -1,0 +1,59 @@
+   Compiling blake3 v0.1.0 (/Users/harshavardhankolhatkar04/Desktop/Projects/Projects to learn Tech/Learn_Rust/impl_blake3_simd/blake3)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 5.50s
+     Running unittests src/lib.rs (/Users/harshavardhankolhatkar04/.cargo/target/debug/deps/blake3-363955f0410cbcd4)
+
+running 1 test
+=== CHUNK START: len=1 ===
+Initial CV (IV): [1779033703, 3144134277, 1013904242, 2773480762, 1359893119, 2600822924, 528734635, 1541459225]
+
+--- BLOCK 0: len=1 ---
+Raw block bytes: [0]
+Message words: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+CV (input): [6a09e667, bb67ae85, 3c6ef372, a54ff53a, 510e527f, 9b05688c, 1f83d9ab, 5be0cd19]
+Counter: 0, Flags: 0x03, BlockLen: 1
+is_first_block: true, is_last_block: true
+[COMPRESS] Input h: [6a09e667, bb67ae85, 3c6ef372, a54ff53a, 510e527f, 9b05688c, 1f83d9ab, 5be0cd19]
+[COMPRESS] Message: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+[COMPRESS] t (counter): [0, 0], len: 1, flags: 0x03
+[COMPRESS] Initial state v: [6a09e667, bb67ae85, 3c6ef372, a54ff53a, 510e527f, 9b05688c, 1f83d9ab, 5be0cd19, 6a09e667, bb67ae85, 3c6ef372, a54ff53a, 0, 0, 1, 3]
+[COMPRESS] After round 0: [4766c7d4, 5d72554, e36a7068, ba2a19a0, 1a1e5b91, 97c62327, 4f0313a7, 9009da17, 95ee520, a86e302c, e0b91290, c0ab6588, 33ab312c, d722121f, 4362a35f, 103594f2]
+[COMPRESS] After round 1: [81dbb66a, f906f6c7, e107b9a6, 8bf12362, 8dea0aac, 6b8e81d6, 65bd9af, 397a9c06, d58f6b9e, db82d302, 9b686a73, 8ecbfbdf, 250f0146, 80b2f0be, 19b46ac9, 1d3ed6d8]
+[COMPRESS] After round 2: [a2fb4057, 2e6629a1, 680baf18, e952499b, eac5fa5a, eb5c3e46, 98c02408, 1af1838f, 6ce8458f, e2302987, 9ef5375c, e5899945, 77f59024, a6e302fb, 128dccb6, 67a9c2ab]
+[COMPRESS] After round 3: [e8b62ad5, df5aa68c, 5f7ad7da, ac8e6d3a, e5263b97, df580b60, 90c2c82a, 590568a5, 3282890a, 4f53389, 3068c3dd, 12e58c06, 18268894, 7412d9ad, 5b2014e9, 7c8c3a6d]
+[COMPRESS] After round 4: [cc0b7bf8, 8a7a5bc2, d46ddb14, 6dd25b78, ddff0546, 44c7792b, 86d4ff86, 3ed87b43, b002e32a, c6909ba0, 68c6e8ff, fc3726, cd0d5efc, 41402058, 51e62a3c, 5a196611]
+[COMPRESS] After round 5: [52fd402d, f6a3ef0a, 423ec0d, 146d8989, 10db7533, 63087289, 99e2994b, 4f9dd31e, d220c775, 30afc119, 4a294a91, efb2bfc9, d19e65dd, 74e3db08, 3c224980, 6699c8c7]
+[COMPRESS] After round 6: [f640f1bd, 8abbae40, a90d2344, a6c30496, a689a322, db84e96d, 5ce28b8d, c1ba1ed4, 7ee700b0, d69df5d, 55cf8c94, 8efed641, bcc98dd3, fd4eb1d5, ad279af2, d44913a5]
+[COMPRESS] Before finalization: [f640f1bd, 8abbae40, a90d2344, a6c30496, a689a322, db84e96d, 5ce28b8d, c1ba1ed4, 7ee700b0, d69df5d, 55cf8c94, 8efed641, bcc98dd3, fd4eb1d5, ad279af2, d44913a5]
+[COMPRESS] Final output: [88a7f10d, 87d2711d, fcc2afd0, 283dd2d7, 1a402ef1, 26ca58b8, f1c5117f, 15f30d71, 14eee6d7, b60e71d8, 69a17fe6, 2bb1237b, edc7dfac, 664bd959, b2a44359, 8fa9debc]
+Compress output: [88a7f10d, 87d2711d, fcc2afd0, 283dd2d7, 1a402ef1, 26ca58b8, f1c5117f, 15f30d71, 14eee6d7, b60e71d8, 69a17fe6, 2bb1237b, edc7dfac, 664bd959, b2a44359, 8fa9debc]
+CV (output): [88a7f10d, 87d2711d, fcc2afd0, 283dd2d7, 1a402ef1, 26ca58b8, f1c5117f, 15f30d71]
+
+=== CHUNK END: final CV = [88a7f10d, 87d2711d, fcc2afd0, 283dd2d7, 1a402ef1, 26ca58b8, f1c5117f, 15f30d71] ===
+
+
+=== FINALIZE START ===
+Stack size before finalize: 1
+  Stack[0]: height=0, cv=[88a7f10d, 87d2711d, fcc2afd0, 283dd2d7, 1a402ef1, 26ca58b8, f1c5117f, 15f30d71]
+
+Final root CV: [88a7f10d, 87d2711d, fcc2afd0, 283dd2d7, 1a402ef1, 26ca58b8, f1c5117f, 15f30d71]
+Final hash (32 bytes): 0df1a7881d71d287d0afc2fcd7d23d28f12e401ab858ca267f11c5f1710df315
+=== FINALIZE END ===
+
+Verified Output: 2d3adedff11b61f14c886e35afa036736dcd87a74d27b5c1510225d0f592e213
+Computed Output: 0df1a7881d71d287d0afc2fcd7d23d28f12e401ab858ca267f11c5f1710df315
+
+thread 'preprocessing_tests::test_hash_correctness' (90982) panicked at src/lib.rs:438:5:
+assertion `left == right` failed
+  left: [13, 241, 167, 136, 29, 113, 210, 135, 208, 175, 194, 252, 215, 210, 61, 40, 241, 46, 64, 26, 184, 88, 202, 38, 127, 17, 197, 241, 113, 13, 243, 21]
+ right: [45, 58, 222, 223, 241, 27, 97, 241, 76, 136, 110, 53, 175, 160, 54, 115, 109, 205, 135, 167, 77, 39, 181, 193, 81, 2, 37, 208, 245, 146, 226, 19]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test preprocessing_tests::test_hash_correctness ... FAILED
+
+failures:
+
+failures:
+    preprocessing_tests::test_hash_correctness
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `--lib`
