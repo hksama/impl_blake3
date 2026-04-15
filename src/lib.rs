@@ -62,7 +62,7 @@ impl Blake3Hasher {
 
     /// Merkle Tree Logic: Pushes a CV at a specific height and merges if necessary.
     fn push_cv(&mut self, mut new_cv: [Word; 8], mut height: u8) {
-        #[cfg(feature = "trace_internals")]
+        #[cfg(feature = "enable_tracing")]
         {
             tracing::trace!(
                 new_cv = ?new_cv,
@@ -75,10 +75,10 @@ impl Blake3Hasher {
         }
 
         // While the top of the stack has the same height, merge them into a parent.
-        let mut merge_count = 0;
+        let mut _merge_count = 0;
         while let Some(&(top_cv, top_height)) = self.cv_stack.last() {
             if top_height == height {
-                #[cfg(feature = "trace_internals")]
+                #[cfg(feature = "enable_tracing")]
                 {
                     tracing::debug!(
                         merge_at_height = height,
@@ -91,7 +91,7 @@ impl Blake3Hasher {
 
                 new_cv = self.parent_output(top_cv, new_cv, false);
 
-                #[cfg(feature = "trace_internals")]
+                #[cfg(feature = "enable_tracing")]
                 {
                     tracing::trace!(
                         merge_at_height = height,
@@ -103,21 +103,21 @@ impl Blake3Hasher {
 
                 self.cv_stack.pop();
                 height += 1;
-                merge_count += 1;
+                _merge_count += 1;
             } else {
                 break;
             }
         }
 
-        #[cfg(feature = "trace_internals")]
+        #[cfg(feature = "enable_tracing")]
         {
-            if merge_count > 0 {
+            if _merge_count > 0 {
                 tracing::debug!(
                     final_height = height,
-                    merges_performed = merge_count,
+                    merges_performed = _merge_count,
                     final_cv = ?new_cv,
                     "push_cv: after {} merge(s), final height={}, CV={}",
-                    merge_count,
+                    _merge_count,
                     height,
                     "TRACE"
                 );
@@ -126,7 +126,7 @@ impl Blake3Hasher {
 
         self.cv_stack.push((new_cv, height));
 
-        #[cfg(feature = "trace_internals")]
+        #[cfg(feature = "enable_tracing")]
         tracing::trace!(
             stack_len_after = self.cv_stack.len(),
             stack_heights = ?self.cv_stack.iter().map(|(_, h)| h).collect::<Vec<_>>(),
@@ -138,7 +138,7 @@ impl Blake3Hasher {
 
     /// Compresses two children into a parent CV.
     fn parent_output(&self, left_child: [Word; 8], right_child: [Word; 8], is_root: bool) -> [Word; 8] {
-        #[cfg(feature = "trace_internals")]
+        #[cfg(feature = "enable_tracing")]
         {
             tracing::trace!(
                 left_child = ?left_child,
@@ -153,7 +153,7 @@ impl Blake3Hasher {
         msg[0..8].copy_from_slice(&left_child);
         msg[8..16].copy_from_slice(&right_child);
 
-        #[cfg(feature = "trace_internals")]
+        #[cfg(feature = "enable_tracing")]
         tracing::trace!(
             msg = ?msg,
             "parent_output: message block assembled [left_child | right_child]"
@@ -162,7 +162,7 @@ impl Blake3Hasher {
         let mut flags = PARENT;
         if is_root { flags |= ROOT; }
 
-        #[cfg(feature = "trace_internals")]
+        #[cfg(feature = "enable_tracing")]
         tracing::trace!(
             flags = flags,
             is_root = is_root,
@@ -174,7 +174,7 @@ impl Blake3Hasher {
 
         let res = compress(IV, &mut msg, [0, 0], 64, flags);
 
-        #[cfg(feature = "trace_internals")]
+        #[cfg(feature = "enable_tracing")]
         {
             let parent_cv = &res[0..8];
             tracing::debug!(
@@ -191,7 +191,7 @@ impl Blake3Hasher {
     /// Splits each chunk into 64-byte blocks, applies compression with proper flags,
     /// and pushes resulting CVs to the Merkle tree.
     pub fn process_chunks(&mut self, data: &[u8]) -> Result<(), Blake3Error> {
-        #[cfg(feature = "trace_internals")]
+        #[cfg(feature = "enable_tracing")]
         {
             init_tracing();
             tracing::info!(
@@ -202,13 +202,13 @@ impl Blake3Hasher {
         }
 
         if data.is_empty() {
-            #[cfg(feature = "trace_internals")]
+            #[cfg(feature = "enable_tracing")]
             tracing::error!("process_chunks: ERROR - input is empty");
             return Err(ChunkingError::InputTooShort.into());
         }
 
         let num_chunks = (data.len() + 1023) / 1024;
-        #[cfg(feature = "trace_internals")]
+        #[cfg(feature = "enable_tracing")]
         tracing::debug!(
             num_chunks = num_chunks,
             "process_chunks: splitting input into {} 1024-byte chunks",
@@ -217,7 +217,7 @@ impl Blake3Hasher {
 
         // Process each 1024-byte chunk
         for (chunk_idx, chunk) in data.chunks(1024).enumerate() {
-            #[cfg(feature = "trace_internals")]
+            #[cfg(feature = "enable_tracing")]
             tracing::info!(
                 chunk_idx = chunk_idx,
                 chunk_len = chunk.len(),
@@ -229,7 +229,7 @@ impl Blake3Hasher {
             let mut cv = IV; // Start with IV for each chunk
             let chunk_len = chunk.len();
             
-            #[cfg(feature = "trace_internals")]
+            #[cfg(feature = "enable_tracing")]
             tracing::trace!(
                 cv_initial = ?cv,
                 "process_chunks: chunk {} initialized with IV",
@@ -242,7 +242,7 @@ impl Blake3Hasher {
                 let mut msg = [0u32; 16];
                 let block_len = block.len();
                 
-                #[cfg(feature = "trace_internals")]
+                #[cfg(feature = "enable_tracing")]
                 tracing::debug!(
                     chunk_idx = chunk_idx,
                     block_idx = block_idx,
@@ -258,7 +258,7 @@ impl Blake3Hasher {
                     msg[i / 4] |= (byte_val as u32) << ((i % 4) * 8);
                 }
                 
-                #[cfg(feature = "trace_internals")]
+                #[cfg(feature = "enable_tracing")]
                 tracing::trace!(
                     chunk_idx = chunk_idx,
                     block_idx = block_idx,
@@ -280,7 +280,7 @@ impl Blake3Hasher {
                 // Set ROOT flag if this is a single-leaf (no merging needed)
                 if self.is_root_node && is_last_block && is_last_chunk { flags |= ROOT; }
                 
-                #[cfg(feature = "trace_internals")]
+                #[cfg(feature = "enable_tracing")]
                 tracing::trace!(
                     chunk_idx = chunk_idx,
                     block_idx = block_idx,
@@ -302,7 +302,7 @@ impl Blake3Hasher {
                 // Counter is bytes processed in this chunk
                 let counter = (block_idx as u32) * 64;
                 
-                #[cfg(feature = "trace_internals")]
+                #[cfg(feature = "enable_tracing")]
                 tracing::trace!(
                     chunk_idx = chunk_idx,
                     block_idx = block_idx,
@@ -321,7 +321,7 @@ impl Blake3Hasher {
                 // Update CV for next block (or becomes final CV for this chunk)
                 cv = output[0..8].try_into().unwrap();
 
-                #[cfg(feature = "trace_internals")]
+                #[cfg(feature = "enable_tracing")]
                 {
                     tracing::trace!(
                         chunk_idx = chunk_idx,
@@ -345,7 +345,7 @@ impl Blake3Hasher {
                 }
             }
             
-            #[cfg(feature = "trace_internals")]
+            #[cfg(feature = "enable_tracing")]
             tracing::debug!(
                 chunk_idx = chunk_idx,
                 cv_final_for_chunk = ?cv,
@@ -358,7 +358,7 @@ impl Blake3Hasher {
             self.chunk_count += 1;
             self.bytes_processed += chunk_len as u64;
 
-            #[cfg(feature = "trace_internals")]
+            #[cfg(feature = "enable_tracing")]
             tracing::info!(
                 chunk_idx = chunk_idx,
                 chunk_count_total = self.chunk_count,
@@ -369,7 +369,7 @@ impl Blake3Hasher {
             );
         }
 
-        #[cfg(feature = "trace_internals")]
+        #[cfg(feature = "enable_tracing")]
         tracing::info!(
             total_chunks = self.chunk_count,
             total_bytes = self.bytes_processed,
@@ -386,7 +386,7 @@ impl Blake3Hasher {
     /// For output_len <= 32, returns a 32-byte hash.
     /// For output_len > 32, generates extended output via multiple compressions.
     pub fn finalize(mut self, output_len: usize) -> [u8; 32] {
-        #[cfg(feature = "trace_internals")]
+        #[cfg(feature = "enable_tracing")]
         {
             init_tracing();
             tracing::info!(
@@ -404,7 +404,7 @@ impl Blake3Hasher {
 
         // Ensure we have at least one CV
         if self.cv_stack.is_empty() {
-            #[cfg(feature = "trace_internals")]
+            #[cfg(feature = "enable_tracing")]
             tracing::debug!(
                 "finalize: stack is empty, pushing IV with height=0"
             );
@@ -412,7 +412,7 @@ impl Blake3Hasher {
             self.push_cv(IV, 0);
         }
 
-        #[cfg(feature = "trace_internals")]
+        #[cfg(feature = "enable_tracing")]
         tracing::debug!(
             cv_stack_len = self.cv_stack.len(),
             "finalize: starting tree reduction with stack_len={} CVs",
@@ -420,65 +420,65 @@ impl Blake3Hasher {
         );
 
         // Tree reduction: Merge all CVs bottom-up until one remains
-        let mut merge_count = 0;
+        let mut _merge_count = 0;
         while self.cv_stack.len() > 1 {
-            let (right_cv, right_height) = self.cv_stack.pop().unwrap();
-            let (left_cv, left_height) = self.cv_stack.pop().unwrap();
+            let (right_cv, _right_height) = self.cv_stack.pop().unwrap();
+            let (left_cv, _left_height) = self.cv_stack.pop().unwrap();
             let is_root = self.cv_stack.is_empty(); // Last merge is the root
 
-            #[cfg(feature = "trace_internals")]
+            #[cfg(feature = "enable_tracing")]
             {
                 tracing::trace!(
-                    merge_num = merge_count,
+                    merge_num = _merge_count,
                     left_cv = ?left_cv,
-                    left_height = left_height,
+                    left_height = _left_height,
                     right_cv = ?right_cv,
-                    right_height = right_height,
+                    right_height = _right_height,
                     is_root_merge = is_root,
                     "finalize: starting merge {}: left_height={}, right_height={}, is_root={}",
-                    merge_count,
-                    left_height,
-                    right_height,
+                    _merge_count,
+                    _left_height,
+                    _right_height,
                     is_root
                 );
             }
 
             let parent = self.parent_output(left_cv, right_cv, is_root);
 
-            #[cfg(feature = "trace_internals")]
+            #[cfg(feature = "enable_tracing")]
             {
                 tracing::trace!(
-                    merge_num = merge_count,
+                    merge_num = _merge_count,
                     parent_cv = ?parent,
                     "finalize: merge {} resulted in parent CV",
-                    merge_count
+                    _merge_count
                 );
             }
 
             self.cv_stack.push((parent, 255)); // Height irrelevant after merge
-            merge_count += 1;
+            _merge_count += 1;
 
-            #[cfg(feature = "trace_internals")]
+            #[cfg(feature = "enable_tracing")]
             tracing::debug!(
-                merge_num = merge_count,
+                merge_num = _merge_count,
                 cv_stack_len_after = self.cv_stack.len(),
                 "finalize: merge {} done, stack now has {} CV(s)",
-                merge_count - 1,
+                _merge_count - 1,
                 self.cv_stack.len()
             );
         }
 
-        #[cfg(feature = "trace_internals")]
+        #[cfg(feature = "enable_tracing")]
         tracing::debug!(
-            total_merges = merge_count,
+            total_merges = _merge_count,
             "finalize: all {} merges completed, extracting final root CV",
-            merge_count
+            _merge_count
         );
 
         // Get the final root chaining value
         let (final_cv, _) = self.cv_stack.pop().unwrap();
 
-        #[cfg(feature = "trace_internals")]
+        #[cfg(feature = "enable_tracing")]
         {
             tracing::trace!(
                 final_cv = ?final_cv,
@@ -499,7 +499,7 @@ impl Blake3Hasher {
                 result[i * 4..(i + 1) * 4].copy_from_slice(&word.to_le_bytes());
             }
 
-            #[cfg(feature = "trace_internals")]
+            #[cfg(feature = "enable_tracing")]
             {
                 let result_hex = result.iter()
                     .map(|b| format!("{:02x}", b))
@@ -521,7 +521,7 @@ impl Blake3Hasher {
             result[i * 4..(i + 1) * 4].copy_from_slice(&word.to_le_bytes());
         }
 
-        #[cfg(feature = "trace_internals")]
+        #[cfg(feature = "enable_tracing")]
         tracing::info!(
             output_len_requested = output_len,
             output_len_returned = 32,
@@ -574,11 +574,11 @@ impl Write for FileWriter {
     }
 }
 
-#[cfg(feature = "trace_internals")]
+#[cfg(feature = "enable_tracing")]
 use std::sync::Once;
-#[cfg(feature = "trace_internals")]
+#[cfg(feature = "enable_tracing")]
 static TRACING_INIT: Once = Once::new();
-#[cfg(feature = "trace_internals")]
+#[cfg(feature = "enable_tracing")]
 pub fn init_tracing() {
     TRACING_INIT.call_once(|| {
         let logger = FileLogger::new("blake3_trace.log");
@@ -660,7 +660,7 @@ fn compress<'a>(
     len: u32,
     flags: u32,
 ) -> [u32; 16] {
-    #[cfg(feature = "trace_internals")]
+    #[cfg(feature = "enable_tracing")]
     {
         init_tracing();
         tracing::debug!(
@@ -685,7 +685,7 @@ fn compress<'a>(
     v[14] = len;
     v[15] = flags;
 
-    #[cfg(feature = "trace_internals")]
+    #[cfg(feature = "enable_tracing")]
     tracing::trace!(
         state_initial = ?v,
         "compress: initial state assembled [h[0:8] | IV[0:4] | t[0] | t[1] | len | flags]"
@@ -700,9 +700,9 @@ fn compress<'a>(
         v = quarter_round_fn(&mut v, 0, 5, 10, 15, msg[8], msg[9]);
         v = quarter_round_fn(&mut v, 1, 6, 11, 12, msg[10], msg[11]);
         v = quarter_round_fn(&mut v, 2, 7, 8, 13, msg[12], msg[13]);
-        v = quarter_round_fn(&mut v, 3, 4, 9, 14, msg[15], msg[15]);
+        v = quarter_round_fn(&mut v, 3, 4, 9, 14, msg[14], msg[15]);
 
-        #[cfg(feature = "trace_internals")]
+        #[cfg(feature = "enable_tracing")]
         {
             tracing::debug!(
                 round = _rounds,
@@ -719,14 +719,14 @@ fn compress<'a>(
                 _rounds
             );
         }
-        #[cfg(feature = "trace_internals")]
+        #[cfg(feature = "enable_tracing")]
         tracing::trace!(
             state_before_permute = ?v,
             msg_before_permute = ?msg,
             "compress: state after 7 rounds, before message permutation"
         );
         permute(msg);
-        #[cfg(feature = "trace_internals")]
+        #[cfg(feature = "enable_tracing")]
         tracing::trace!(
             msg_after_permute = ?msg,
             "compress: message permutation done"
@@ -741,7 +741,7 @@ fn compress<'a>(
         v[i + 8] = v[i + 8] ^ h[i];
     }
 
-    #[cfg(feature = "trace_internals")]
+    #[cfg(feature = "enable_tracing")]
     {
         tracing::trace!(
             v0 = v[0], v1 = v[1], v2 = v[2], v3 = v[3],
@@ -787,7 +787,8 @@ struct MerkleTree {
 
 #[cfg(test)]
 mod preprocessing_tests {
-    use rand::RngExt;
+    use rand::rngs::StdRng;
+    use rand::{RngExt, SeedableRng};
     
     use super::*;
     fn generate_input(len: usize) -> Vec<u8> {
@@ -795,20 +796,45 @@ mod preprocessing_tests {
     }
 
     #[test]
-fn test_hash_correctness() {
-    let input = generate_input(3);
+    fn test_hash_correctness() {
+        for len in 1..=128 {
+            let input = generate_input(len);
+            let hash_output = Blake3Hasher::hash(&input);
+            let verified_output = blake3::hash(&input);
 
-    // let expected_hex = "2d3adedff11b61f14c886e35afa036736dcd87a74d27b5c1510225d0f592e213c3a6cb8bf623e20cdb535f8d1a5ffb86342d9c0b64aca3bce1d31f60adfa137b358ad4d79f97b47c3d5e79f179df87a3b9776ef8325f8329886ba42f07fb138bb502f4081cbcec3195c5871e6c23e2cc97d3c69a613eba131e5f1351f3f1da786545e5";
+            assert_eq!(
+                &hash_output,
+                verified_output.as_bytes(),
+                "hash mismatch for input length {}",
+                len
+            );
+        }
+    }
 
-    let hash_output = Blake3Hasher::hash(&input);
-    let verified_output = blake3::hash(&input);
-    println!("Verified Output: {}", hex::encode(verified_output.as_bytes()));
-    println!("Computed Output: {}", hex::encode(&hash_output));
+    #[test]
+    fn test_hash_fuzz_many_inputs_against_reference() {
+        // Deterministic seed keeps this fuzz-like test reproducible in CI.
+        let mut rng = StdRng::seed_from_u64(0xB1A6_E3F0_2026_0415);
 
+        for case_idx in 0..2000 {
+            let len = rng.random_range(1..=16_384);
+            let mut input = vec![0u8; len];
+            for byte in &mut input {
+                *byte = rng.random();
+            }
 
-    // assert_eq!(hex::encode(hash_output), expected_hex);
-    assert_eq!(&hash_output, verified_output.as_bytes());
-}
+            let hash_output = Blake3Hasher::hash(&input);
+            let verified_output = blake3::hash(&input);
+
+            assert_eq!(
+                &hash_output,
+                verified_output.as_bytes(),
+                "fuzz hash mismatch in case {} (len={})",
+                case_idx,
+                len
+            );
+        }
+    }
 
     /// general test to see if chunking works
     #[test]
@@ -850,7 +876,7 @@ fn test_hash_correctness() {
     #[test]
     fn test_compress_with_logging() {
         // 1. Initialize tracing only if the feature is enabled
-        #[cfg(feature = "trace_internals")]
+        #[cfg(feature = "enable_tracing")]
         {
             init_tracing();
             tracing::info!("Starting compression test with tracing enabled...");
@@ -869,7 +895,7 @@ fn test_hash_correctness() {
         // 4. Basic assertion to ensure it ran
         assert_ne!(result, [0u32; 16]);
 
-        #[cfg(feature = "trace_internals")]
+        #[cfg(feature = "enable_tracing")]
         tracing::info!("Compression test finished. Check blake3_trace.log for details.");
     }
 

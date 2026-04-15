@@ -1,5 +1,5 @@
 [package]
-name = "blake3"
+name = "blake3_lib"
 version = "0.1.0"
 edition = "2024"
 
@@ -11,9 +11,8 @@ tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 
 [features]
 default = []
-trace_internals = ["dep:tracing"]
+enable_tracing = ["dep:tracing"]
 
 [dev-dependencies]
-criterion = "0.8.2"
 rand = "0.10.0"
 blake3 = "1"
