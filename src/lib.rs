@@ -11,6 +11,7 @@ static IV: [u32; 8] = [
     0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19,
 ];
 
+
 // BLAKE3 Flags
 const CHUNK_START: u32 = 1 << 0; // 0x01
 const CHUNK_END: u32 = 1 << 1; // 0x02
@@ -24,6 +25,7 @@ pub struct Blake3Hasher {
     cv_stack: Vec<([Word; 8], u8)>, // (Chaining Value, Height)
     chunk_count: u64,
     bytes_processed: u64, // Tracks bytes processed for counter
+    is_root_node: bool,  // Whether this is a single-leaf (root node)
 }
 
 impl Blake3Hasher {
@@ -32,6 +34,7 @@ impl Blake3Hasher {
             cv_stack: Vec::with_capacity(64), // Max height for 2^64 bytes
             chunk_count: 0,
             bytes_processed: 0,
+            is_root_node: false,
         }
     }
     
@@ -48,6 +51,9 @@ impl Blake3Hasher {
     /// Entry point for hashing a full slice of data.
     pub fn hash(data: &[u8]) -> [u8; 32] {
         let mut hasher = Self::new();
+        // Determine if this is a single-leaf case before processing
+        let is_single_leaf = data.len() <= 1024;
+        hasher.is_root_node = is_single_leaf;  // Mark if this is the final output
         // Process all data through the chunks pipeline
         hasher.process_chunks(data).expect("Failed to process chunks");
         // Finalize and return 32-byte hash
@@ -180,6 +186,7 @@ impl Blake3Hasher {
 
         res[0..8].try_into().unwrap()
     }
+
     /// Process 1024-byte chunks and generate chaining values via tree integration.
     /// Splits each chunk into 64-byte blocks, applies compression with proper flags,
     /// and pushes resulting CVs to the Merkle tree.
@@ -264,11 +271,14 @@ impl Blake3Hasher {
                 let is_first_block = block_idx == 0;
                 let blocks_in_chunk = (chunk_len + 63) / 64; // Ceiling division
                 let is_last_block = block_idx == blocks_in_chunk - 1;
+                let is_last_chunk = chunk_idx == num_chunks - 1;
                 
                 // Compute flags
                 let mut flags = 0u32;
                 if is_first_block { flags |= CHUNK_START; }
                 if is_last_block { flags |= CHUNK_END; }
+                // Set ROOT flag if this is a single-leaf (no merging needed)
+                if self.is_root_node && is_last_block && is_last_chunk { flags |= ROOT; }
                 
                 #[cfg(feature = "trace_internals")]
                 tracing::trace!(
@@ -276,12 +286,16 @@ impl Blake3Hasher {
                     block_idx = block_idx,
                     is_first = is_first_block,
                     is_last = is_last_block,
+                    is_last_chunk = is_last_chunk,
+                    is_root = self.is_root_node,
                     flags = flags,
-                    "process_chunks: chunk[{}] block[{}] flags: first={}, last={}, flags_value={}",
+                    "process_chunks: chunk[{}] block[{}] flags: first={}, last={}, last_chunk={}, is_root_node={}, flags_value={}",
                     chunk_idx,
                     block_idx,
                     is_first_block,
                     is_last_block,
+                    is_last_chunk,
+                    self.is_root_node,
                     flags
                 );
                 
@@ -705,22 +719,22 @@ fn compress<'a>(
                 _rounds
             );
         }
+        #[cfg(feature = "trace_internals")]
+        tracing::trace!(
+            state_before_permute = ?v,
+            msg_before_permute = ?msg,
+            "compress: state after 7 rounds, before message permutation"
+        );
+        permute(msg);
+        #[cfg(feature = "trace_internals")]
+        tracing::trace!(
+            msg_after_permute = ?msg,
+            "compress: message permutation done"
+        );
     }
 
-    #[cfg(feature = "trace_internals")]
-    tracing::trace!(
-        state_before_permute = ?v,
-        msg_before_permute = ?msg,
-        "compress: state after 7 rounds, before message permutation"
-    );
 
-    permute(msg);
 
-    #[cfg(feature = "trace_internals")]
-    tracing::trace!(
-        msg_after_permute = ?msg,
-        "compress: message permutation done"
-    );
 
     for i in 0..8 {
         v[i] = v[i] ^ v[i + 8];
@@ -782,7 +796,7 @@ mod preprocessing_tests {
 
     #[test]
 fn test_hash_correctness() {
-    let input = generate_input(1);
+    let input = generate_input(3);
 
     // let expected_hex = "2d3adedff11b61f14c886e35afa036736dcd87a74d27b5c1510225d0f592e213c3a6cb8bf623e20cdb535f8d1a5ffb86342d9c0b64aca3bce1d31f60adfa137b358ad4d79f97b47c3d5e79f179df87a3b9776ef8325f8329886ba42f07fb138bb502f4081cbcec3195c5871e6c23e2cc97d3c69a613eba131e5f1351f3f1da786545e5";
 

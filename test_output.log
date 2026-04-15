@@ -1,0 +1,22 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 2.66s
+     Running unittests src/lib.rs (/Users/harshavardhankolhatkar04/.cargo/target/debug/deps/blake3-fea446f0c82796e1)
+
+running 1 test
+Verified Output: 2d3adedff11b61f14c886e35afa036736dcd87a74d27b5c1510225d0f592e213
+Computed Output: 0df1a7881d71d287d0afc2fcd7d23d28f12e401ab858ca267f11c5f1710df315
+
+thread 'preprocessing_tests::test_hash_correctness' (501197) panicked at src/lib.rs:796:5:
+assertion `left == right` failed
+  left: [13, 241, 167, 136, 29, 113, 210, 135, 208, 175, 194, 252, 215, 210, 61, 40, 241, 46, 64, 26, 184, 88, 202, 38, 127, 17, 197, 241, 113, 13, 243, 21]
+ right: [45, 58, 222, 223, 241, 27, 97, 241, 76, 136, 110, 53, 175, 160, 54, 115, 109, 205, 135, 167, 77, 39, 181, 193, 81, 2, 37, 208, 245, 146, 226, 19]
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+test preprocessing_tests::test_hash_correctness ... FAILED
+
+failures:
+
+failures:
+    preprocessing_tests::test_hash_correctness
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 6 filtered out; finished in 0.00s
+
+error: test failed, to rerun pass `--lib`
