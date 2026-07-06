@@ -10,7 +10,7 @@ use tracing_subscriber::fmt::MakeWriter;
 static IV: [u32; 8] = [
     0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19,
 ];
-
+mod simd;
 
 // BLAKE3 Flags
 const CHUNK_START: u32 = 1 << 0; // 0x01
