@@ -1,3 +1,0 @@
-# Summary
-
-- [Scope](./SCOPE.md)
