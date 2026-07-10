@@ -138,3 +138,9 @@ ciborium = "0.2.2"
 
 [build-dependencies]
 cc = "1.1.12"
+
+[profile.dev]
+opt-level = 0
+
+[profile.release]
+opt-level = 0
