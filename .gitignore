@@ -1,3 +1,4 @@
 /target
 blake3_trace.log
 # BLAKE3/
+*.log
