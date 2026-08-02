@@ -11,7 +11,7 @@ use tracing_subscriber::fmt::MakeWriter;
 static IV: [u32; 8] = [
     0x6a09e667, 0xbb67ae85, 0x3c6ef372, 0xa54ff53a, 0x510e527f, 0x9b05688c, 0x1f83d9ab, 0x5be0cd19,
 ];
-mod simd;
+pub mod simd;
 
 // BLAKE3 Flags
 const CHUNK_START: u32 = 1 << 0; // 0x01
@@ -24,8 +24,8 @@ const ROOT: u32 = 1 << 3; // 0x08
 #[derive(Debug, Clone)]
 pub struct Blake3Hasher {
     // (Chaining Value, Height) for each node in the Merkle tree; 2^(Height) gives no of elements at each height
-    cv_stack: Vec<([Word; 8], u8)>, 
-    // 
+    cv_stack: Vec<([Word; 8], u8)>,
+    //
     processed_chunk_count: u64,
     bytes_processed: u64, // Tracks bytes processed for counter
     is_root_node: bool,  // Whether this is a single-leaf (root node)
@@ -38,11 +38,11 @@ impl Blake3Hasher {
         Self {
             cv_stack: Vec::with_capacity(64), // Max height for 2^64 bytes
             processed_chunk_count: 0,
-            bytes_processed: 0, 
+            bytes_processed: 0,
             is_root_node: false,
         }
     }
-    
+
     /// Helper: Compute flags for a block given its position in a chunk
     #[allow(dead_code)]
     fn compute_block_flags(&self, is_first_block: bool, is_last_block: bool, is_root: bool) -> u32 {
@@ -52,7 +52,7 @@ impl Blake3Hasher {
         if is_root { flags |= ROOT; }
         flags
     }
-    
+
     /// Entry point for hashing a full slice of data.
     pub fn hash(data: &[u8]) -> [u8; 32] {
         let mut hasher = Self::new();
@@ -106,20 +106,20 @@ impl Blake3Hasher {
 
             let mut cv = IV; // Start with IV for each chunk
             let chunk_len = chunk.len();
-            
+
             #[cfg(feature = "enable_tracing")]
             tracing::trace!(
                 cv_initial = ?cv,
                 "process_chunks: chunk {} initialized with IV",
                 chunk_idx
             );
-            
+
             // Process each 64-byte block within the chunk
             for (block_idx, block) in chunk.chunks(64).enumerate() {
                 // Pad the block if it's smaller than 64 bytes (last block in last chunk)
                 let mut msg = [0u32; 16];
                 let block_len = block.len();
-                
+
                 #[cfg(feature = "enable_tracing")]
                 tracing::debug!(
                     chunk_idx = chunk_idx,
@@ -135,7 +135,7 @@ impl Blake3Hasher {
                 for (i, &byte_val) in block.iter().enumerate() {
                     msg[i / 4] |= (byte_val as u32) << ((i % 4) * 8);
                 }
-                
+
                 #[cfg(feature = "enable_tracing")]
                 tracing::trace!(
                     chunk_idx = chunk_idx,
@@ -145,12 +145,12 @@ impl Blake3Hasher {
                     chunk_idx,
                     block_idx
                 );
-                
+
                 let is_first_block = block_idx == 0;
                 let blocks_in_chunk = (chunk_len + 63) / 64; // Ceiling division
                 let is_last_block = block_idx == blocks_in_chunk - 1;
                 let is_last_chunk = chunk_idx == num_chunks - 1;
-                
+
                 // Compute flags
                 let mut flags = 0u32;
                 if is_first_block { flags |= CHUNK_START; }
@@ -164,7 +164,7 @@ impl Blake3Hasher {
                 // if block_idx == 1{
                 //     flags = 0xa;
                 // }
-                
+
                 // Counter is bytes processed in this chunk
                 let incorrect_counter = (block_idx as u32) *1;
                 let counter = [chunk_idx as u32, (chunk_idx >> 32) as u32];
@@ -179,7 +179,7 @@ impl Blake3Hasher {
                     is_last_chunk = is_last_chunk,
                     is_root = self.is_root_node,
                     flags = flags,
-                    "process_chunks: chunk[{}] block[{}] flags: first={}, last={}, last_chunk={}, is_root_node={}, flags_value={},incorrect_counter={},correct_counter={:?}", 
+                    "process_chunks: chunk[{}] block[{}] flags: first={}, last={}, last_chunk={}, is_root_node={}, flags_value={},incorrect_counter={},correct_counter={:?}",
                     chunk_idx,
                     block_idx,
                     is_first_block,
@@ -205,10 +205,10 @@ impl Blake3Hasher {
                 //     counter,
                 //     "TRACE"
                 // );
-                
+
                 // Compress this block
                 let output = compress(cv, &mut msg, counter, block_len as u32, flags);
-                
+
                 // Update CV for next block (or becomes final CV for this chunk)
                 cv = output[0..8].try_into().unwrap();
 
@@ -235,7 +235,7 @@ impl Blake3Hasher {
                     );
                 }
             }
-            
+
             #[cfg(feature = "enable_tracing")]
             tracing::debug!(
                 chunk_idx = chunk_idx,
@@ -315,7 +315,7 @@ impl Blake3Hasher {
                         height
                     );
                 }
-                new_cv = self.compress_child_to_parent_cv(top_cv, new_cv, false);
+                new_cv = self.parent_output(top_cv, new_cv, false);
 
                 #[cfg(feature = "enable_tracing")]
                 {
@@ -363,7 +363,12 @@ impl Blake3Hasher {
     }
 
     /// Compresses two children into a parent CV.
-    fn compress_child_to_parent_cv(&self, left_child: [Word; 8], right_child: [Word; 8], is_root: bool) -> [Word; 8] {
+    fn parent_output(
+        &self,
+        left_child: [Word; 8],
+        right_child: [Word; 8],
+        is_root: bool,
+    ) -> [Word; 8] {
         #[cfg(feature = "enable_tracing")]
         {
             init_tracing();
@@ -469,7 +474,7 @@ impl Blake3Hasher {
                 );
             }
 
-            let parent = self.compress_child_to_parent_cv(left_cv, right_cv, is_root);
+            let parent = self.parent_output(left_cv, right_cv, is_root);
             println!("finalize: produced parent CV = {:?}", parent);
             #[cfg(feature = "enable_tracing")]
             {
@@ -527,7 +532,8 @@ impl Blake3Hasher {
 
             #[cfg(feature = "enable_tracing")]
             {
-                let result_hex = result.iter()
+                let result_hex = result
+                    .iter()
                     .map(|b| format!("{:02x}", b))
                     .collect::<String>();
                 tracing::info!(
@@ -558,7 +564,6 @@ impl Blake3Hasher {
         result
     }
 }
-
 
 /// Logging struct
 pub struct FileLogger {
@@ -650,7 +655,7 @@ fn permute(data_chunks: &mut [u32; 16]) -> [u32; 16] {
 /// Is the quarter round function inspired from the ChaCha20 algorithm.
 /// Mentioned in https://www.ietf.org/archive/id/draft-aumasson-blake3-00.html#name-quarter-round-function-g
 #[inline(always)]
-fn quarter_round_fn(
+pub fn quarter_round_fn(
     word_in_process: &mut [Word; 16],
     a: usize,
     b: usize,
@@ -799,7 +804,7 @@ fn extend_output_length(
 
     // Parents always use: IV as chaining value, 0 as counter, 64 as length
     let out = compress(IV, &mut msg, [0, 0], 64, flags | PARENT);
-    
+
     // Truncate to 8 words (32 bytes)
     let mut cv = [0u32; 8];
     cv.copy_from_slice(&out[0..8]);
@@ -816,7 +821,7 @@ struct MerkleTree {
 mod preprocessing_tests {
     use rand::rngs::StdRng;
     use rand::{RngExt, SeedableRng};
-    
+
     use super::*;
     fn generate_input(len: usize) -> Vec<u8> {
         (0..len).map(|i| (i % 251) as u8).collect()
@@ -844,7 +849,7 @@ mod preprocessing_tests {
         }
     }
 
-    /*
+
 
     #[test]
     fn test_hash_correctness_multiple() {
@@ -877,114 +882,113 @@ mod preprocessing_tests {
         // Deterministic seed keeps this fuzz-like test reproducible in CI.
         let mut rng = StdRng::seed_from_u64(0xB1A6_E3F0_2026_0415);
 
-        for case_idx in 0..2000 {
-            let len = rng.random_range(1..=16_384);
-            let mut input = vec![0u8; len];
-            for byte in &mut input {
-                *byte = rng.random();
-            }
+           for case_idx in 0..2000 {
+               let len = rng.random_range(1..=16_384);
+               let mut input = vec![0u8; len];
+               for byte in &mut input {
+                   *byte = rng.random();
+               }
 
-            let hash_output = Blake3Hasher::hash(&input);
-            // let verified_output = 
+               let hash_output = Blake3Hasher::hash(&input);
+            //    let verified_output = blake3::hash(&input);
 
-            assert_eq!(
-                &hash_output,
-                verified_output.as_bytes(),
-                "fuzz hash mismatch in case {} (len={})",
-                case_idx,
-                len
-            );
-        }
-    }
+            //    assert_eq!(
+            //        &hash_output,
+            //        verified_output.as_bytes(),
+            //        "fuzz hash mismatch in case {} (len={})",
+            //        case_idx,
+            //        len
+            //    );
+           }
+       }
 
-    /// general test to see if chunking works
-    #[test]
-    fn test_chunking() {
-        // Test that hasher can process various input sizes without panic
-        let input_small = vec![0, 100, 21, 2, 4, 2, 3, 1];
-        let mut hasher_a = Blake3Hasher::new();
-        assert!(hasher_a.process_chunks(&input_small).is_ok());
+       /// general test to see if chunking works
+       #[test]
+       fn test_chunking() {
+           // Test that hasher can process various input sizes without panic
+           let input_small = vec![0, 100, 21, 2, 4, 2, 3, 1];
+           let mut hasher_a = Blake3Hasher::new();
+           assert!(hasher_a.process_chunks(&input_small).is_ok());
 
-        // Test with 1025 bytes (spans 2 chunks)
-        let input_mid: Vec<u8> = (0..1025).map(|i| (i % 256) as u8).collect();
-        let mut hasher_b = Blake3Hasher::new();
-        assert!(hasher_b.process_chunks(&input_mid).is_ok());
-        assert_eq!(hasher_b.processed_chunk_count, 2); // Should have processed 2 chunks (1024 + 1)
+           // Test with 1025 bytes (spans 2 chunks)
+           let input_mid: Vec<u8> = (0..1025).map(|i| (i % 256) as u8).collect();
+           let mut hasher_b = Blake3Hasher::new();
+           assert!(hasher_b.process_chunks(&input_mid).is_ok());
+           assert_eq!(hasher_b.processed_chunk_count, 2); // Should have processed 2 chunks (1024 + 1)
 
-        // Test empty input triggers error
-        let input_empty: Vec<u8> = vec![];
-        let mut hasher_c = Blake3Hasher::new();
-        assert!(hasher_c.process_chunks(&input_empty).is_err());
-    }
-    #[test]
-    fn test_error_formatting() {
-        let err = Blake3Error::from(ChunkingError::InputTooShort);
+           // Test empty input triggers error
+           let input_empty: Vec<u8> = vec![];
+           let mut hasher_c = Blake3Hasher::new();
+           assert!(hasher_c.process_chunks(&input_empty).is_err());
+       }
+       #[test]
+       fn test_error_formatting() {
+           let err = Blake3Error::from(ChunkingError::InputTooShort);
 
-        // 1. Test "Display" (The "Pretty" version for users)
-        let display_msg = format!("{}", err);
-        assert_eq!(
-            display_msg,
-            "Input length is zero; BLAKE3 requires at least 1 byte."
-        );
+           // 1. Test "Display" (The "Pretty" version for users)
+           let display_msg = format!("{}", err);
+           assert_eq!(
+               display_msg,
+               "Input length is zero; BLAKE3 requires at least 1 byte."
+           );
 
-        // 2. Test "Debug" (The "Technical" version for developers)
-        let debug_msg = format!("{:?}", err);
-        // Debug usually contains the Type names and variants
-        assert!(debug_msg.contains("Chunking"));
-        assert!(debug_msg.contains("InputTooShort"));
-    }
+           // 2. Test "Debug" (The "Technical" version for developers)
+           let debug_msg = format!("{:?}", err);
+           // Debug usually contains the Type names and variants
+           assert!(debug_msg.contains("Chunking"));
+           assert!(debug_msg.contains("InputTooShort"));
+       }
 
-    #[test]
-    fn test_compress_with_logging() {
-        // 1. Initialize tracing only if the feature is enabled
-        #[cfg(feature = "enable_tracing")]
-        {
-            init_tracing();
-            tracing::info!("Starting compression test with tracing enabled...");
-        }
+       #[test]
+       fn test_compress_with_logging() {
+           // 1. Initialize tracing only if the feature is enabled
+           #[cfg(feature = "enable_tracing")]
+           {
+               init_tracing();
+               tracing::info!("Starting compression test with tracing enabled...");
+           }
 
-        // 2. Setup dummy data for compression
-        let h = [0u32; 8];
-        let mut msg = [0u32; 16];
-        let t = [0u32; 2];
-        let len = 64;
-        let flags = 0;
+           // 2. Setup dummy data for compression
+           let h = [0u32; 8];
+           let mut msg = [0u32; 16];
+           let t = [0u32; 2];
+           let len = 64;
+           let flags = 0;
 
-        // 3. Call the function
-        let result = compress(h, &mut msg, t, len, flags);
+           // 3. Call the function
+           let result = compress(h, &mut msg, t, len, flags);
 
-        // 4. Basic assertion to ensure it ran
-        assert_ne!(result, [0u32; 16]);
+           // 4. Basic assertion to ensure it ran
+           assert_ne!(result, [0u32; 16]);
 
-        #[cfg(feature = "enable_tracing")]
-        tracing::info!("Compression test finished. Check blake3_trace.log for details.");
-    }
+           #[cfg(feature = "enable_tracing")]
+           tracing::info!("Compression test finished. Check blake3_trace.log for details.");
+       }
 
-    #[test]
-    fn test_empty_input_error() {
-        let empty_data: Vec<u8> = vec![];
-        let mut hasher = Blake3Hasher::new();
-        let result = hasher.process_chunks(&empty_data);
+       #[test]
+       fn test_empty_input_error() {
+           let empty_data: Vec<u8> = vec![];
+           let mut hasher = Blake3Hasher::new();
+           let result = hasher.process_chunks(&empty_data);
 
-        // Check that it is specifically the ChunkingError variant
-        match result {
-            Err(Blake3Error::Chunking(ChunkingError::InputTooShort)) => (), // Success
-            _ => panic!("Expected InputTooShort error, got {:?}", result),
-        }
-    }
+           // Check that it is specifically the ChunkingError variant
+           match result {
+               Err(Blake3Error::Chunking(ChunkingError::InputTooShort)) => (), // Success
+               _ => panic!("Expected InputTooShort error, got {:?}", result),
+           }
+       }
 
-    #[test]
-    fn test_quarter_round() {
-        let rng = rand::rng();
-        let rng_data: Vec<u32> = rng.clone().random_iter().take(2).collect();
-        let mut gen_word_in_process: Vec<u32> = rng.random_iter().take(16).collect();
-        let array_ref: &mut [u32; 16] = gen_word_in_process.as_mut_slice().try_into().unwrap();
-        let q_output = quarter_round_fn(array_ref, 0, 4, 8, 12, rng_data[0], rng_data[1]);
-        println!("{:?}", q_output);
-    }
+       #[test]
+       fn test_quarter_round() {
+           let rng = rand::rng();
+           let rng_data: Vec<u32> = rng.clone().random_iter().take(2).collect();
+           let mut gen_word_in_process: Vec<u32> = rng.random_iter().take(16).collect();
+           let array_ref: &mut [u32; 16] = gen_word_in_process.as_mut_slice().try_into().unwrap();
+           let q_output = quarter_round_fn(array_ref, 0, 4, 8, 12, rng_data[0], rng_data[1]);
+           println!("{:?}", q_output);
+       }
 
-    #[test]
-    fn test_compress_fn() {}
+       #[test]
+       fn test_compress_fn() {}
 
- */
 }

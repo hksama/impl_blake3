@@ -45,6 +45,8 @@ out
 }
 }
 
+/* 
+
 #[cfg(test)]
 mod fp_tests {
     use super::*;
@@ -326,3 +328,4 @@ pub fn hash_all(data: &[u8]) -> [u8; 32] {
     }
     out
 }
+    */

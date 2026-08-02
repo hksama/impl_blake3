@@ -1,20 +1,25 @@
 [package]
-name = "blake3_lib"
+name = "blake3_optimized"
 version = "0.1.0"
 edition = "2024"
 
 [dependencies]
 hex = "0.4.3"
+rand = "0.10.0"
 thiserror = "2.0.18"
 tracing = {version = "0.1.44", optional= true}
 tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 memmap2 = "0.9.11"
-rand = "0.10.0"
 
 [features]
 default = []
 enable_tracing = ["dep:tracing"]
 
 [dev-dependencies]
+criterion = "0.7"
 rand = "0.10.0"
 blake3 = "1"
+
+[[bench]]
+name = "compress"
+harness = false
