@@ -642,7 +642,7 @@ struct DataChunks<'a> {
 /// permute fn as  which shifts values at indices given in input_indices to shifted_indices
 /// Mentioned in https://www.ietf.org/archive/id/draft-aumasson-blake3-00.html#name-message-word-permutation
 #[inline(always)]
-fn permute(data_chunks: &mut [u32; 16]) -> [u32; 16] {
+pub fn permute(data_chunks: &mut [u32; 16]) -> [u32; 16] {
     let shifted_indices: [usize; 16] = [2, 6, 3, 10, 7, 0, 4, 13, 1, 11, 12, 5, 9, 14, 15, 8];
 
     let temp = *data_chunks;

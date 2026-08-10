@@ -1,4 +1,4 @@
-fn criterion_bench_quarter_round_scalar_vs_avx2() {
+    fn criterion_bench_quarter_round_scalar_vs_avx2() {
         use criterion::Criterion;
         use std::hint::black_box;
         use std::arch::is_x86_feature_detected;
@@ -81,6 +81,43 @@ fn criterion_bench_quarter_round_scalar_vs_avx2() {
         criterion.final_summary();
     }
 
+    #[inline(always)]
+    fn criterion_bench_permute_scalar_vs_avx2() {
+        use blake3_optimized::permute;
+        use blake3_optimized::simd::avx2::permute_simd;
+        use criterion::Criterion;
+        use std::hint::black_box;
+        use std::arch::x86_64::{__m256i, _mm256_loadu_si256};
+
+        let initial: [u32; 16] = std::array::from_fn(|word| {
+            (word as u32).wrapping_mul(0x9E37_79B9) ^ 0xC2B2_AE35
+        });
+        let mut criterion = Criterion::default();
+        let mut group = criterion.benchmark_group("permute");
+
+        group.bench_function("scalar", |bencher| {
+            let mut words = initial;
+            bencher.iter(|| black_box(permute(black_box(&mut words))));
+        });
+
+        group.bench_function("avx2", |bencher| {
+            let mut words = unsafe {
+                [
+                    _mm256_loadu_si256(initial[..8].as_ptr().cast::<__m256i>()),
+                    _mm256_loadu_si256(initial[8..].as_ptr().cast::<__m256i>()),
+                ]
+            };
+            bencher.iter(|| unsafe {
+                permute_simd(black_box(&mut words));
+                black_box(&words);
+            });
+        });
+
+        group.finish();
+        criterion.final_summary();
+    }
+
     fn main(){
         criterion_bench_quarter_round_scalar_vs_avx2();
+        criterion_bench_permute_scalar_vs_avx2();
     }
