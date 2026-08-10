@@ -5,6 +5,7 @@ use std::io::Write;
 use std::sync::{Arc, Mutex};
 mod error;
 mod join;
+mod fp;
 use tracing_subscriber::fmt::MakeWriter;
 /// initialisation vector
 static IV: [u32; 8] = [

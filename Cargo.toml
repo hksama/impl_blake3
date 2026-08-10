@@ -8,6 +8,8 @@ hex = "0.4.3"
 thiserror = "2.0.18"
 tracing = {version = "0.1.44", optional= true}
 tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+memmap2 = "0.9.11"
+rand = "0.10.0"
 
 [features]
 default = []
