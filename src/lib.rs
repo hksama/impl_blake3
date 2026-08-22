@@ -1,11 +1,15 @@
 type Word = u32;
 use crate::error::{Blake3Error, ChunkingError};
+#[cfg(feature = "enable_tracing")]
 use std::fs::File;
+#[cfg(feature = "enable_tracing")]
 use std::io::Write;
+#[cfg(feature = "enable_tracing")]
 use std::sync::{Arc, Mutex};
 mod error;
 mod join;
 mod fp;
+#[cfg(feature = "enable_tracing")]
 use tracing_subscriber::fmt::MakeWriter;
 /// initialisation vector
 static IV: [u32; 8] = [
@@ -566,10 +570,12 @@ impl Blake3Hasher {
 }
 
 /// Logging struct
+#[cfg(feature = "enable_tracing")]
 pub struct FileLogger {
     file: Arc<Mutex<File>>,
 }
 
+#[cfg(feature = "enable_tracing")]
 impl FileLogger {
     pub fn new(path: &str) -> Self {
         let file = File::create(path).expect("Failed to create log file");
@@ -580,6 +586,7 @@ impl FileLogger {
 }
 
 // This trait implementation tells 'tracing' how to get a handle to the file
+#[cfg(feature = "enable_tracing")]
 impl<'a> MakeWriter<'a> for FileLogger {
     type Writer = FileWriter;
 
@@ -590,10 +597,12 @@ impl<'a> MakeWriter<'a> for FileLogger {
     }
 }
 
+#[cfg(feature = "enable_tracing")]
 pub struct FileWriter {
     file: Arc<Mutex<File>>,
 }
 
+#[cfg(feature = "enable_tracing")]
 impl Write for FileWriter {
     fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
         let mut file = self.file.lock().unwrap();

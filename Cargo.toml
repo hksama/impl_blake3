@@ -7,13 +7,16 @@ edition = "2024"
 hex = "0.4.3"
 rand = "0.10.0"
 thiserror = "2.0.18"
-tracing = {version = "0.1.44", optional= true}
-tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+tracing = { version = "0.1.44", optional = true }
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"], optional = true }
 memmap2 = "0.9.11"
 
 [features]
 default = []
-enable_tracing = ["dep:tracing"]
+enable_tracing = ["dep:tracing", "dep:tracing-subscriber"]
+
+[profile.release]
+debug = 2
 
 [dev-dependencies]
 criterion = "0.7"
